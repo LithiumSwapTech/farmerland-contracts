@@ -74,9 +74,6 @@ contract MasterChef is IERC721Receiver, Ownable, ReentrancyGuard {
     uint public usdcDistributionTimeFrameSeconds = 12 hours;
     uint public wheatDistributionTimeFrameSeconds = 12 hours;
 
-    uint public lastUSDCDistroTimestamp = type(uint).max;
-    uint public lastWHEATDistroTimestamp = type(uint).max;
-
     // Info of each user.
     struct UserInfo {
         uint amount;         // How many LP tokens the user has provided.
@@ -135,25 +132,18 @@ contract MasterChef is IERC721Receiver, Ownable, ReentrancyGuard {
         if (block.timestamp <= pool.lastRewardTimestamp)
             return;
 
-        uint lpSupply = pool.totalLocked;
-        if (lpSupply == 0) {
-            pool.lastRewardTimestamp = block.timestamp;
-            return;
-        }
-
-        // WHEAT pool is always pool 0.
-        if (poolInfo.totalLocked > 0) {
+        if (pool.totalLocked > 0) {
             uint usdcRelease = getUSDCDrip();
 
             if (usdcRelease > 0) {
-                accDepositUSDCRewardPerShare = accDepositUSDCRewardPerShare + ((usdcRelease * 1e24) / poolInfo.totalLocked);
+                accDepositUSDCRewardPerShare = accDepositUSDCRewardPerShare + ((usdcRelease * 1e24) / pool.totalLocked);
                 totalUSDCCollected = totalUSDCCollected + usdcRelease;
             }
 
             uint wheatRelease = getWHEATDrip();
 
             if (wheatRelease > 0) {
-                accDepositWHEATRewardPerShare = accDepositWHEATRewardPerShare + ((wheatRelease * 1e24) / poolInfo.totalLocked);
+                accDepositWHEATRewardPerShare = accDepositWHEATRewardPerShare + ((wheatRelease * 1e24) / pool.totalLocked);
                 totalWHEATCollected = totalWHEATCollected + wheatRelease;
             }
         }
@@ -270,6 +260,8 @@ contract MasterChef is IERC721Receiver, Ownable, ReentrancyGuard {
 
             for (uint j = 0;j < nftStakedCollection.length();j++) {
                 uint nftId = nftStakedCollection.at(j);
+
+                userAbilityOnStakeMap[msg.sender][series][nftId] = 0;
 
                 userStakedMap[msg.sender][series][nftId] = false;
 
@@ -406,14 +398,13 @@ contract MasterChef is IERC721Receiver, Ownable, ReentrancyGuard {
         uint usdcAvailable = usdcBalance - promisedUSDC;
 
         // only provide a drip if there has been some seconds passed since the last drip
-        uint blockSinceLastDistro = block.timestamp > lastUSDCDistroTimestamp ? block.timestamp - lastUSDCDistroTimestamp : 0;
+        uint blockSinceLastDistro = block.timestamp > poolInfo.lastRewardTimestamp ? block.timestamp - poolInfo.lastRewardTimestamp : 0;
 
         // We distribute the usdc assuming the old usdc balance wanted to be distributed over usdcDistributionTimeFrameSeconds seconds.
         uint usdcRelease = (blockSinceLastDistro * usdcAvailable) / usdcDistributionTimeFrameSeconds;
 
         usdcRelease = usdcRelease > usdcAvailable ? usdcAvailable : usdcRelease;
 
-        lastUSDCDistroTimestamp = block.timestamp;
         promisedUSDC += usdcRelease;
 
         return usdcRelease;
@@ -430,14 +421,13 @@ contract MasterChef is IERC721Receiver, Ownable, ReentrancyGuard {
         uint wheatAvailable = wheatBalance - promisedWHEAT;
 
         // only provide a drip if there has been some seconds passed since the last drip
-        uint blockSinceLastDistro = block.timestamp > lastWHEATDistroTimestamp ? block.timestamp - lastWHEATDistroTimestamp : 0;
+        uint blockSinceLastDistro = block.timestamp > poolInfo.lastRewardTimestamp ? block.timestamp - poolInfo.lastRewardTimestamp : 0;
 
         // We distribute the wheat assuming the old wheat balance wanted to be distributed over wheatDistributionTimeFrameSeconds seconds.
         uint wheatRelease = (blockSinceLastDistro * wheatAvailable) / wheatDistributionTimeFrameSeconds;
 
         wheatRelease = wheatRelease > wheatAvailable ? wheatAvailable : wheatRelease;
 
-        lastWHEATDistroTimestamp = block.timestamp;
         promisedWHEAT += wheatRelease;
 
         return wheatRelease;
@@ -453,7 +443,7 @@ contract MasterChef is IERC721Receiver, Ownable, ReentrancyGuard {
 
         promisedUSDC -= amount;
 
-        require(usdcCurrency.transfer(recipient, amount), "transfer failed!");
+        usdcCurrency.safeTransfer(recipient, amount);
 
         emit USDCTransferredToUser(recipient, amount);
     }

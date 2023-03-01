@@ -104,7 +104,7 @@ contract WHEAT is ERC20, Ownable, ReentrancyGuard {
     }
 
     address public nftMasterChefAddress;
-    address public daoAddress = 0xea04706c93e4264eaB0320F1ce7A43aa714a7799; // 10% WHEAT, 5% USDC
+    address public daoAddress = 0x994aF05EB0eA1Bb37dfEBd2EA279133C8059ffa7; // 10% WHEAT, 5% USDC
 
     // 2% of lobby entried goto lottery pot
     uint public lottery_share_percentage = 200;
@@ -175,8 +175,10 @@ contract WHEAT is ERC20, Ownable, ReentrancyGuard {
         emit LastLobbySet(oldLastLobbyPool, _lastLobbyPool);
     }
 
-    /* last amount of lobby pool that are minted daily to be distributed between lobby participants which starts from 3k */
-    uint public lastLobbyPool = 3030303030303030303031;
+
+    mapping(uint => uint) public lobbyPool;
+    /* last amount of lobby pool that are minted daily to be distributed between lobby participants which starts from 5k */
+    uint public lastLobbyPool = 5050505050505050505051;
 
     /* Every day's lobby pool is % lower than previous day's */
     uint internal constant lobby_pool_decrease_percentage = 100; // 1%
@@ -356,6 +358,7 @@ contract WHEAT is ERC20, Ownable, ReentrancyGuard {
 
             currentDay = _currentDay;
             _updateLobbyPool();
+            lobbyPool[currentDay] = lastLobbyPool;
 
             // total of 12% from every day's lobby entry goes to:
             // 5% dao + 5% nft masterchef
@@ -426,7 +429,6 @@ contract WHEAT is ERC20, Ownable, ReentrancyGuard {
         uint virtualExtraAmount
     ) internal {
         uint rawAmount = amount;
-        require(currentDay > 0, "lobby disabled on day 0!");
         require(rawAmount > 0, "!0");
 
         // transfer USDC from user wallet if stake profits have already sent to user
@@ -435,6 +437,8 @@ contract WHEAT is ERC20, Ownable, ReentrancyGuard {
         }
 
         updateDaily();
+
+        require(currentDay > 0, "lobby disabled on day 0!");
 
         if (mapMemberLobby[msg.sender][currentDay].entryAmount == 0) {
             usersCount++;
@@ -456,7 +460,7 @@ contract WHEAT is ERC20, Ownable, ReentrancyGuard {
         mapMemberLobby[msg.sender][currentDay].entryAmount += rawAmount;
 
 
-        if (mapMemberLobby[msg.sender][currentDay].entryAmount >= lottery_topBuy_today) {
+        if (mapMemberLobby[msg.sender][currentDay].entryAmount > lottery_topBuy_today) {
             // new top buyer
             lottery_topBuy_today = mapMemberLobby[msg.sender][currentDay].entryAmount;
             lottery_topBuyer_today = msg.sender;
@@ -617,7 +621,7 @@ contract WHEAT is ERC20, Ownable, ReentrancyGuard {
         uint entryDay = mapMemberLobby[_address][_day].entryDay;
 
         if (entryDay != 0 && entryDay < currentDay) {
-            _tokenValue = (lastLobbyPool * mapMemberLobby[_address][_day].entryAmount) / lobbyEntry[entryDay];
+            _tokenValue = (lobbyPool[_day] * mapMemberLobby[_address][_day].entryAmount) / lobbyEntry[entryDay];
         } else {
             _tokenValue = 0;
         }
@@ -752,8 +756,10 @@ contract WHEAT is ERC20, Ownable, ReentrancyGuard {
         uint _stakeValue = mapMemberStake[_address][_stakeId].tokenValue;
 
         for (uint _day = _startDay; _day < _endDay && _day < currentDay; _day++) {
-            userDivs += (dayUSDCPool[_day] * _stakeValue) / totalTokensInActiveStake[_day];
+            userDivs += (dayUSDCPool[_day] * _stakeValue * 1e6) / totalTokensInActiveStake[_day];
         }
+
+        userDivs /= 1e6;
 
         return (userDivs - mapMemberStake[_address][_stakeId].loansReturnAmount);
     }
@@ -1159,23 +1165,23 @@ contract WHEAT is ERC20, Ownable, ReentrancyGuard {
     function checkLottery() internal {
         if (lottery_topBuy_today > lottery_topBuy_latest) {
             // we have a winner
-            // 30% of the pool goes to the winner
+            // 50% of the pool goes to the winner
 
             lottery_topBuy_latest = lottery_topBuy_today;
 
             if (currentDay >= 7) {
-                uint winnerAmount = (lottery_Pool * 30) /100;
+                uint winnerAmount = (lottery_Pool * 50) /100;
                 lottery_Pool -= winnerAmount;
                 token_USDC.transfer(address(lottery_topBuyer_today), winnerAmount);
 
                 emit LotteryWinner(lottery_topBuyer_today, winnerAmount, lottery_topBuy_latest);
             }
         } else {
-            // no winner, reducing the record by 2.5%
-            lottery_topBuy_latest -= (lottery_topBuy_latest * 25) /1000;
+            // no winner, reducing the record by 20%
+            lottery_topBuy_latest -= (lottery_topBuy_latest * 200) /1000;
         }
 
-        // 0.5% of lobby entry of each day goes to lottery_Pool
+        // 2% of lobby entry of each day goes to lottery_Pool
         lottery_Pool += (lobbyEntry[currentDay - 1] * lottery_share_percentage) /10000;
 
         lottery_topBuyer_today = address(0);

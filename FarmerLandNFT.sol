@@ -21,7 +21,7 @@ contract FarmerLandNFT is ERC721Enumerable, Ownable, ReentrancyGuard {
 
     mapping(address => bool) public admins;
 
-    address public constant founder = 0xa54eD6cfD0D78d7Ea308Bcc5b9c5E819e8Eebd3D;
+    address public constant founder = 0xC43f13A64fd351C8846660B5D02dB344829859b8;
 
     bool public paused = true;
     uint public startTime;
@@ -141,7 +141,7 @@ contract FarmerLandNFT is ERC721Enumerable, Ownable, ReentrancyGuard {
 
         uint total = totalSupply();
         require(total + _count <= MAX_ELEMENTS, "Max limit");
-        require(total <= MAX_ELEMENTS, "Sale end");
+
         if (!freeMintWhitelist[msg.sender]) {
             require(msg.value >= getMATICPrice(_count) ||
                     admins[msg.sender], "Value below price");

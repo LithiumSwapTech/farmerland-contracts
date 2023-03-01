@@ -13,7 +13,7 @@ contract NFTBurnMint is Ownable, ReentrancyGuard {
 
     address public constant BURN_ADDRESS = 0x000000000000000000000000000000000000dEaD;
 
-    address public constant founder = 0xa54eD6cfD0D78d7Ea308Bcc5b9c5E819e8Eebd3D;
+    address public constant founder = 0xC43f13A64fd351C8846660B5D02dB344829859b8;
 
     /**
      * @dev set which Nfts are allowed to be staked

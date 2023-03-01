@@ -63,7 +63,7 @@ contract FarmerlandNFTLevelUpper is Ownable, ReentrancyGuard {
 
 
     constructor(uint _startTime, WHEAT _wheatToken, MasterChef _nftMasterChef) {
-        require(block.timestamp < _startTime, "cannot set start block in the past!");
+        require(block.timestamp < _startTime, "cannot set start time in the past!");
         require(address(_wheatToken) != address(0), "_wheat cannot be the zero address");
         require(address(_nftMasterChef) != address(0), "_nftMasterChef cannot be the zero address");
     
